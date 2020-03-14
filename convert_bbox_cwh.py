@@ -1,12 +1,10 @@
 import os
-from os import listdir, getcwd
+from os import listdir
 from os.path import join
-import shutil
 import numpy as np 
-import math
-import sys
-import random
+
 from bbox_tr import *
+
 
 bbox_cwh = np.array([25,45,50,90])
 

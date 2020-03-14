@@ -1,5 +1,4 @@
 import torch
-from torch.autograd import Variable
 import torchvision
 import torchvision.transforms as transforms
 import torchvision.models as models
@@ -13,7 +12,6 @@ import math
 import resnet_backbone
 from bbox_tr import plot_bbox,bbox_tr_get_wh
 from PairFileDataset import PairFileDataset
-from matplotlib import pyplot as plt
 from PIL import Image
 from polyiou import iou_poly
 from polynms import nms_poly
@@ -26,16 +24,57 @@ class TRD(nn.Module):
         self.bboxw_range = bboxw_range
         self.image_size = image_size
         self.backbone = resnet_backbone.resnet50(pretrained)
-        self.conv2 = nn.Conv2d(self.backbone.feature_planes[2], self.backbone.feature_planes[1], kernel_size=1, stride=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(self.backbone.feature_planes[1])
-        self.relu2 = nn.ReLU(inplace=True)
-        self.conv1 = nn.Conv2d(self.backbone.feature_planes[1]*2, self.backbone.feature_planes[0], kernel_size=1, stride=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(self.backbone.feature_planes[0])
-        self.relu1 = nn.ReLU(inplace=True)
+
+        self.fpn_layer2_1 = nn.Sequential(
+            nn.Conv2d(self.backbone.feature_planes[2], self.backbone.feature_planes[1], kernel_size=1, stride=1),
+            nn.BatchNorm2d(self.backbone.feature_planes[1]),
+            nn.ReLU(inplace=True)
+        )
+
+        self.fpn_layer2_2 = nn.Sequential(
+            nn.Conv2d(self.backbone.feature_planes[1], self.backbone.feature_planes[0], kernel_size=1, stride=1),
+            nn.BatchNorm2d(self.backbone.feature_planes[0]),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(self.backbone.feature_planes[0], self.backbone.feature_planes[0], kernel_size=1, stride=1),
+            nn.BatchNorm2d(self.backbone.feature_planes[0]),
+            nn.ReLU()
+        )
+
+        self.fpn_layer1_1 = nn.Sequential(
+            nn.Conv2d(self.backbone.feature_planes[2], self.backbone.feature_planes[1], kernel_size=1, stride=1),
+            nn.BatchNorm2d(self.backbone.feature_planes[1]),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(self.backbone.feature_planes[1], self.backbone.feature_planes[0], kernel_size=1, stride=1),
+            nn.BatchNorm2d(self.backbone.feature_planes[0]),
+            nn.ReLU(inplace=True)
+        )
+
+        self.fpn_layer1_2 = nn.Sequential(
+            nn.Conv2d(self.backbone.feature_planes[0], self.backbone.feature_planes[0], kernel_size=1, stride=1),
+            nn.BatchNorm2d(self.backbone.feature_planes[0]),
+            nn.ReLU()
+        )
+
+        self.fpn_layer0_1 = nn.Sequential(
+            nn.Conv2d(self.backbone.feature_planes[1], self.backbone.feature_planes[0], kernel_size=1, stride=1),
+            nn.BatchNorm2d(self.backbone.feature_planes[0]),
+            nn.ReLU(inplace=True)
+        )
+
+        self.fpn_layer0_2 = nn.Sequential(
+            nn.Conv2d(self.backbone.feature_planes[0], self.backbone.feature_planes[0], kernel_size=1, stride=1),
+            nn.BatchNorm2d(self.backbone.feature_planes[0]),
+            nn.ReLU()
+        )
+
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
         
         self.output = nn.Sequential(
-            nn.Conv2d(self.backbone.inplanes, 5 + 2 + 1 + (0 if num_classes==1 else num_classes), kernel_size=1, stride=1, bias=False),
+            nn.Conv2d(self.backbone.feature_planes[0], self.backbone.feature_planes[0], kernel_size=1, stride=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(self.backbone.feature_planes[0], 256, kernel_size=1, stride=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 5 + 2 + 1 + (0 if num_classes==1 else num_classes), kernel_size=1, stride=1),
             nn.Sigmoid()
         )
     
@@ -44,24 +83,22 @@ class TRD(nn.Module):
 
         ft0,ft1,ft2 = self.backbone(x)
 
-        ft21 = self.conv2(ft2)
-        ft21 = self.bn2(ft21)
-        ft21 = self.relu2(ft21)
-        ft21 = self.upsample(ft21)
+        ft2_1 = self.fpn_layer2_1(ft2)        
+        ft2_2 = self.fpn_layer2_2(ft2_1)
 
-        ft1 = torch.cat((ft1,ft21),dim=1)
+        ft2_1 = self.upsample(ft2_1)
+        ft1_1 = torch.cat((ft1,ft2_1),dim=1)
+        ft1_1 = self.fpn_layer1_1(ft1_1)
+        ft1_2 = self.fpn_layer1_2(ft1_1)
 
-        ft10 = self.conv1(ft1)
-        ft10 = self.bn1(ft10)
-        ft10 = self.relu1(ft10)
-        ft10 = self.upsample(ft10)
+        ft1_1 = self.upsample(ft1_1)
+        ft0_1 = torch.cat((ft0,ft1_1),dim=1)
+        ft0_1 = self.fpn_layer0_1(ft0_1)
+        ft0_2 = self.fpn_layer0_2(ft0_1)
 
-        ft20 = self.upsample(ft21)
-        ft0 = torch.cat((ft0,ft10,ft20),dim=1)
-
-        x0 = self.output(ft0)
-        x1 = self.output(ft1)
-        x2 = self.output(ft2)
+        x0 = self.output(ft0_2)
+        x1 = self.output(ft1_2)
+        x2 = self.output(ft2_2)
 
         return (x2,x1,x0)
 
@@ -103,18 +140,13 @@ class TRD(nn.Module):
 
         return np.array(obj_list)
     
-    def bigdetect(self, image, transform, step = None, score_thresh = 0.7, iou_thresh = 0.5, cd_thresh = 0.1, device = None):
+    def bigdetect(self, image, transform, overlap, score_thresh = 0.7, iou_thresh = 0.5, cd_thresh = 0.1, device = None):
         iw, ih = image.size
         assert iw >= self.image_size and ih > self.image_size
-        step_dif = 0
-        if step is None:
-            step_dif = self.image_size/4
-            step = self.image_size - step_dif
-        else:
-            step_dif = self.image_size - step
+        step = self.image_size - overlap
         # - 5 表示4个像素及以内的目标就不检测了
-        byc = (ih - step_dif + step - 5)/step
-        bxc = (iw - step_dif + step - 5)/step
+        byc = (ih - overlap + step - 5)/step
+        bxc = (iw - overlap + step - 5)/step
         byc = int(byc)
         bxc = int(bxc)
         uls = []
@@ -381,9 +413,9 @@ if __name__ == '__main__':
     # plot_bbox(image, pred)
     # plt.show()    
 
-    net.train()
+    
     for epoch in range(start_epoch,end_epoch):  # loop over the dataset multiple times
-
+        net.train()
         for i, (images, targets) in enumerate(trainloader, 0):
             # get the inputs
             images = images.to(device)

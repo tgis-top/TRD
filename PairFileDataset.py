@@ -6,10 +6,8 @@ import torchvision
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 import os
-from os import listdir, getcwd
+from os import listdir
 from os.path import join
-import shutil
-import matplotlib.pyplot as plt
 
 __all__ = (
     "PairFileDataset",\

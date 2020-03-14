@@ -1,11 +1,8 @@
 import os
-from os import listdir, getcwd
+from os import listdir
 from os.path import join
-import shutil
 import numpy as np 
-import math
-import sys
-import random
+
 from bbox_tr import *
 
 # bbox_4pt = np.array([2753,2408,2861,2385,2888,2468,2805,2502])
@@ -55,7 +52,9 @@ for i in os.listdir(in_dir):
         in_file.close() 
 
 cls_file = open(join(out_dir,"cls_id.txt"), 'w')
-cls_file.write(str(classes))
+for cls_name in classes:
+    cls_id = classes[cls_name]
+    cls_file.write( '%3d, %s\n'%(cls_id,cls_name))
 cls_file.close()
             
 

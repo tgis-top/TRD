@@ -134,8 +134,6 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
         self.feature_planes.append(self.inplanes)
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -199,7 +197,14 @@ class ResNet(nn.Module):
 def _resnet(arch, block, layers, pretrained, progress, **kwargs):
     model = ResNet(block, layers, **kwargs)
     if pretrained is not None:
-        model.load_state_dict(torch.load(pretrained))
+        pretrained_dict = torch.load(pretrained)
+        model_dict = model.state_dict()  
+        #将pretrained_dict里不属于model_dict的键剔除掉 
+        pretrained_dict =  {k: v for k, v in pretrained_dict.items() if k in model_dict}         
+        # 更新现有的model_dict 
+        model_dict.update(pretrained_dict)         
+        # 加载我们真正需要的state_dict 
+        model.load_state_dict(model_dict)
     return model
 
 
