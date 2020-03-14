@@ -30,13 +30,13 @@ if __name__ == '__main__':
     # # 加载我们真正需要的state_dict 
     # net.load_state_dict(model_dict)
     # torch.save(model_dict, './param/TRD_4900.pth')
-    # net.load_state_dict(torch.load('./param/TRD_4900.pth'))
+    net.load_state_dict(torch.load('./lan4/TRD_1000.pth'))
     net.to(device)
 
-    image = Image.open(r'D:\cvImageSamples\lan4\test\四尾栅藻 (4).JPG')
+    image = Image.open(r'D:\cvImageSamples\lan4\test\Untitled 1.jpg')
     net.eval()
     with torch.no_grad():
-        pred = net.bigdetect(image,transform,175,score_thresh=0.75,iou_thresh=0.5,cd_thresh=0.1,device=device)
+        pred = net.bigdetect(image,transform,217,score_thresh=0.5,iou_thresh=0.5,cd_thresh=0.1,device=device)
         # pred,_ = nms_poly(pred,1,0.4)
         if pred is not None:
             plot_bbox(np.asarray(image), pred, scores=pred[:,7])

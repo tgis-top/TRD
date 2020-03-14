@@ -42,12 +42,14 @@ for i in os.listdir(in_dir):
                     classes[parts[8]] = cls_id
                 bbox_4pt_ = [float(x) for x in parts[:8]]
                 bbox_tr_ = bbox_4pt_2_tr(bbox_4pt_)
-                out_file.write(
-                    str(cls_id) + " " 
-                    + " ".join(['%.3f'%a for a in bbox_tr_[:4]]) + " " 
-                    + str(int(bbox_tr_[4])) + " " 
-                    + '%.3f'%bbox_tr_[5] + " " 
-                    + parts[9] + '\n')
+                w,_ = bbox_tr_get_wh(bbox_tr_)
+                if w > 11:
+                    out_file.write(
+                        str(cls_id) + " " 
+                        + " ".join(['%.3f'%a for a in bbox_tr_[:4]]) + " " 
+                        + str(int(bbox_tr_[4])) + " " 
+                        + '%.3f'%bbox_tr_[5] + " " 
+                        + parts[9] + '\n')
         out_file.close()   
         in_file.close() 
 

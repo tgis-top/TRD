@@ -51,6 +51,8 @@ def bbox_4pt_2_tr(bbox_):
     # 所以要缩放中心点到两个顶点的向量使其长度相等
     lp = math.sqrt(D[2]*D[2] + D[3]*D[3])
     lq = math.sqrt(D[4]*D[4] + D[5]*D[5])
+    if lp == 0.0 or lq == 0.0:
+        return [D[0],D[1],0.,0.,1,0]
     ll = (lp+lq)/2
     D[2] = D[2]*ll/lp
     D[3] = D[3]*ll/lp
@@ -110,6 +112,8 @@ def bbox_cwh_2_tr(bbox_):
     return bbox_tr_
 
 def bbox_tr_get_wh(bbox_):
+    if bbox_[2] == 0. and bbox_[3] == 0.:
+        return 0,0
     r1 = bbox_[2]/2
     r2 = bbox_[3]/2
     # 如果异号将其中一个取负
@@ -121,7 +125,8 @@ def bbox_tr_get_wh(bbox_):
     rl = math.sqrt(rls)
     pl = math.sqrt(p1*p1+p2*p2)
     h = math.sqrt(2*rls + 2*rl*pl)
-    w = math.sqrt(2*rls - 2*rl*pl)    
+    w = 2*rls - 2*rl*pl
+    w = 0 if w <= 0. else math.sqrt(w)    
 
     return w,h
 

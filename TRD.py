@@ -191,13 +191,14 @@ class TRD(nn.Module):
 
 class TRDLoss(nn.Module):
 
-    def __init__(self,bboxw_range,image_size = 416):
+    def __init__(self,bboxw_range,image_size = 416, is_abs_bbox=False):
         super(TRDLoss,self).__init__()
         self.bboxw_range = bboxw_range
         self.image_size = image_size
         self.smooth_l1 = nn.SmoothL1Loss(reduction='none')
         self.mse = nn.MSELoss(reduction='none')
         self.cross_entropy = nn.CrossEntropyLoss(reduction='none')
+        self.is_abs_bbox = is_abs_bbox
         
         # 正例置信度
         self.score_loss_p_log = 0.0            
@@ -250,7 +251,9 @@ class TRDLoss(nn.Module):
             for k in range(len(labels)):
                 bbox = bboxes[k]
                 label = labels[k]
-                abs_bbox = [bbox[b]*self.image_size if b < 4 else bbox[b] for b in range(6)]
+                abs_bbox = bbox
+                if not self.is_abs_bbox:
+                    abs_bbox = [bbox[b]*self.image_size if b < 4 else bbox[b] for b in range(6)]
                 w,_ = bbox_tr_get_wh(abs_bbox)
                 x_c = abs_bbox[0]
                 y_c = abs_bbox[1]
@@ -370,7 +373,7 @@ if __name__ == '__main__':
     batch_size = 8
     image_size = 416
     bboxw_range = [(48,144),(24,72),(12,36)]
-    log_batchs = 20
+    log_batchs = 50
     start_epoch = 1
     end_epoch = 1001
 
@@ -395,9 +398,9 @@ if __name__ == '__main__':
     
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     net = TRD(bboxw_range,image_size,num_classes)    
-    net.load_state_dict(torch.load('./param/TRD_final.pth'))
+    net.load_state_dict(torch.load('./lan4/TRD_1000.pth'))
     net.to(device)
-    criterion = TRDLoss(bboxw_range)
+    criterion = TRDLoss(bboxw_range,image_size)
     optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
     # dataiter = iter(trainloader)
@@ -413,7 +416,7 @@ if __name__ == '__main__':
     # plot_bbox(image, pred)
     # plt.show()    
 
-    
+    # log_file = open(r'')
     for epoch in range(start_epoch,end_epoch):  # loop over the dataset multiple times
         net.train()
         for i, (images, targets) in enumerate(trainloader, 0):
@@ -432,12 +435,14 @@ if __name__ == '__main__':
 
             # print log
             if i % log_batchs == (log_batchs-1):    # print every 2000 mini-batches
-                print('[%d, %7d] sum_loss: %.3f score_loss_p: %.3f score_loss_n: %.3f bboxv_loss: %.3f bboxs_loss: %.3f label_loss: %.3f' %
-                      (epoch, i + 1, 
-                      loss, 
-                      criterion.score_loss_p_log, criterion.score_loss_n_log,
-                      criterion.bboxv_loss_log, criterion.bboxs_loss_log, 
-                      criterion.label_loss_log))
+                log_msg = '[%d, %7d] sum_loss: %.3f score_loss_p: %.3f score_loss_n: %.3f bboxv_loss: %.3f bboxs_loss: %.3f label_loss: %.3f' %(
+                    epoch, i + 1, 
+                    loss, 
+                    criterion.score_loss_p_log, criterion.score_loss_n_log,
+                    criterion.bboxv_loss_log, criterion.bboxs_loss_log, 
+                    criterion.label_loss_log)
+                print(log_msg)
+                # log_file.writeline(log_msg)
         
         if epoch % 50 == 0:
             save_path = './param/TRD_%d.pth'%epoch
