@@ -20,15 +20,31 @@ def exclude_classes(in_dir,out_dir,excludes):
             out_file.close()   
             in_file.close() 
 
-def exclude_small_images(img_dir,lbl_dir,img_w, img_h):
+def exclude_small_images(img_dir,lbl_dir,img_w, img_h,img_ext='.png'):
     for i in os.listdir(img_dir):
-        image_id,_ = os.path.splitext(i)
-        img = Image.open(join(img_dir,i)) 
-        iw, ih = img.size
-        img.close()
-        if iw != img_w or ih != img_h:
-            os.remove(join(img_dir,i))
-            os.remove(join(lbl_dir,image_id+'.txt'))
+        image_id,image_ext = os.path.splitext(i)
+        if image_ext == img_ext:
+            img = Image.open(join(img_dir,i)) 
+            iw, ih = img.size
+            img.close()
+            if iw != img_w or ih != img_h:
+                os.remove(join(img_dir,i))
+                os.remove(join(lbl_dir,image_id+'.txt'))
+
+def exclude_empty_samples(img_dir,lbl_dir,img_ext='.png'):
+    for i in os.listdir(lbl_dir):
+        image_id,lbl_ext = os.path.splitext(i)
+        if lbl_ext == ".txt":
+            lbl_file = open(join(lbl_dir,i), 'r')
+            smplc = 0
+            for line in lbl_file:
+                parts = line.split()
+                if len(parts) > 6:
+                    smplc = smplc+1
+            lbl_file.close()
+            if smplc == 0:
+                os.remove(join(lbl_dir,i))
+                os.remove(join(img_dir,image_id+img_ext))
 
 
 if __name__ == '__main__':

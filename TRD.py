@@ -259,8 +259,11 @@ class TRDLoss(nn.Module):
                 y_c = abs_bbox[1]
                 u = bbox[2]
                 v = bbox[3]
-                s = int(abs_bbox[4])
-                p = abs_bbox[5]
+                if self.is_abs_bbox:
+                    u = u/self.image_size
+                    v = v/self.image_size
+                s = int(bbox[4])
+                p = bbox[5]
                 for l in range(3):
                     if w >= bboxw_range[l][0] and w <= bboxw_range[l][1]:
                         pix_p_count[l] = pix_p_count[l] + 1
