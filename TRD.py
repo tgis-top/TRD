@@ -191,9 +191,10 @@ class TRD(nn.Module):
 
 class TRDLoss(nn.Module):
 
-    def __init__(self,bboxw_range,image_size = 416, is_abs_bbox=False):
+    def __init__(self,bboxw_range,image_size = 416, num_classes=20, is_abs_bbox=False):
         super(TRDLoss,self).__init__()
         self.bboxw_range = bboxw_range
+        self.label_div = -1.0
         self.image_size = image_size
         self.smooth_l1 = nn.SmoothL1Loss(reduction='none')
         self.mse = nn.MSELoss(reduction='none')
@@ -220,6 +221,8 @@ class TRDLoss(nn.Module):
         bboxw_range = self.bboxw_range
         batch_size = outputs[0].shape[0]
         num_classes = outputs[0].shape[1] - 8
+        if num_classes > 1 and self.label_div < 0.0:
+            self.label_div = math.log2(num_classes)
         # 特征图像素对应输入图像的尺寸
         grid_size = []
         # 创建目标张量
@@ -281,7 +284,7 @@ class TRDLoss(nn.Module):
                         targets_[l]['score'][j,y_ci,x_ci] = 1
                         targets_[l]['bboxs'][j,y_ci,x_ci] = s
                         if num_classes > 1:
-                            targets_[l]['label'][j,y_ci,x_ci] = label
+                            targets_[l]['label'][j,y_ci,x_ci] = torch.LongTensor([label])
         
         # 正例置信度
         self.score_loss_p_log = 0.0            
@@ -342,7 +345,7 @@ class TRDLoss(nn.Module):
                 label_loss = self.cross_entropy(label_output,label_target)
                 label_loss = torch.sum(label_loss*score_target)
                 if pix_p_count[j] > 0:
-                    label_loss = label_loss / pix_p_count[j]
+                    label_loss = label_loss / (pix_p_count[j]*self.label_div)
                 sum_loss = sum_loss + 2*label_loss
                 self.label_loss_log = self.label_loss_log + label_loss
 

@@ -39,5 +39,5 @@ if __name__ == '__main__':
         pred = net.bigdetect(image,transform,217,score_thresh=0.5,iou_thresh=0.5,cd_thresh=0.1,device=device)
         # pred,_ = nms_poly(pred,1,0.4)
         if pred is not None:
-            plot_bbox(np.asarray(image), pred, scores=pred[:,7])
+            plot_bbox(np.asarray(image), pred, scores=pred[:,7], labels=pred[:,6])
             plt.show()
