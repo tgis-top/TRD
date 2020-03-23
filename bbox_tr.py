@@ -60,6 +60,14 @@ def bbox_4pt_2_tr(bbox_):
     D[5] = D[5]*ll/lq
     # 按照夹角大小和方向约束选择标注四边形的向量
     dp = D[2]*D[4] + D[3]*D[5]
+    # 如果是正方形，人为规定取两个分量同号的顶点作为标注量
+    # 另外，如果顶点在坐标轴上，选择x轴正方向上的顶点作为标注量
+    if dp == 0:
+        if (D[2] > 0 and D[3] >= 0) or (D[2] < 0 and D[3] <= 0):
+            return [D[0],D[1],2*abs(D[2]),2*abs(D[3]),1,0]
+        else:
+            return [D[0],D[1],2*abs(D[4]),2*abs(D[5]),1,0]
+    
     cos = dp/(ll*ll)
     # 向量(D[2],D[3])在(D[4],D[5])上的投影向量与(D[4],D[5])的比例系数 就是|cos|
     if cos < 0:
@@ -86,6 +94,9 @@ def bbox_4pt_2_tr(bbox_):
     return bbox_tr_
 
 def bbox_cwh_2_tr(bbox_):
+    # 如果宽高相等，也就是正方形，人为规定取两个分量同号的顶点作为标注量
+    if bbox_[2] == bbox_[3]:
+        return [bbox_[0],bbox_[1],bbox_[2],bbox_[3],1,0]
     P = [bbox_[2],bbox_[3]]
     Q = [-bbox_[2],bbox_[3]]
     dp = P[0]*Q[0] + P[1]*Q[1]
