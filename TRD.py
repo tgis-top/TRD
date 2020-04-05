@@ -227,8 +227,9 @@ class TRDLoss(nn.Module):
         grid_size = []
         # 创建目标张量
         targets_ = []
-        # 各特征图是否对应目标像素地数量
+        # 各层特征图对应目标的像素数量（三层特征图金字塔）
         pix_p_count = torch.tensor([0,0,0],device=outputs[0].device,dtype=outputs[0].dtype)
+        # 各层特征图不对应目标的像素数量（三层特征图金字塔）
         pix_n_count = torch.tensor([0,0,0],device=outputs[0].device,dtype=outputs[0].dtype)
         for j in range(3):
             target_ = {}
@@ -241,6 +242,8 @@ class TRDLoss(nn.Module):
             # 范围框符号部分 同号为1 异号为0
             shape[1] = shape[0]
             target_['bboxs'] = torch.zeros(*shape[1:],device=outputs[j].device,dtype=torch.long)
+            # 范围框符号的权重 顶点向量靠近坐标轴轴时符号无论取何值范围框误差都不会太大 此时权重应该很小
+            target_['bboxs_weight'] = torch.zeros(*shape[1:],device=outputs[j].device,dtype=outputs[j].dtype)
             # 置信度部分 有目标为1 无为0
             target_['score'] = torch.zeros(*shape[1:],device=outputs[j].device,dtype=outputs[j].dtype)
             # 类别标签部分 
@@ -267,6 +270,11 @@ class TRDLoss(nn.Module):
                     v = v/self.image_size
                 s = int(bbox[4])
                 p = bbox[5]
+                # 顶点向量两个分量模值差异越大下述算式的结果越接近1
+                bsw = (abs_bbox[2]-abs_bbox[3])/(abs_bbox[2]+abs_bbox[3])
+                bsw = bsw*bsw
+                # 反s曲线函数 bsw变大到一定程度权重应该突然减小
+                bsw = 1/(1+math.exp(20*(bsw-0.8)))
                 for l in range(3):
                     if w >= bboxw_range[l][0] and w <= bboxw_range[l][1]:
                         pix_p_count[l] = pix_p_count[l] + 1
@@ -283,6 +291,7 @@ class TRDLoss(nn.Module):
                         targets_[l]['bboxv'][j,:,y_ci,x_ci] = tb
                         targets_[l]['score'][j,y_ci,x_ci] = 1
                         targets_[l]['bboxs'][j,y_ci,x_ci] = s
+                        targets_[l]['bboxs_weight'][j,y_ci,x_ci] = bsw
                         if num_classes > 1:
                             targets_[l]['label'][j,y_ci,x_ci] = torch.LongTensor([label])
         
@@ -314,18 +323,21 @@ class TRDLoss(nn.Module):
             score_weight_n = torch.tensor(1) - score_target
             score_loss_n = torch.sum(score_loss*score_weight_n)
 
-            # 范围框数值部分损失
-            bboxv_output = output[:,:5,:,:]
-            bboxv_target = target['bboxv']
-            bboxv_loss = self.smooth_l1(bboxv_output,bboxv_target)
-            bboxv_loss = torch.sum(bboxv_loss,dim = 1)
-            bboxv_loss = torch.sum(bboxv_loss*score_target)
-
             # 范围框符号部分损失
             bboxs_output = output[:,5:7,:,:]
             bboxs_target = target['bboxs']
+            bboxs_weight = target['bboxs_weight']
             bboxs_loss = self.cross_entropy(bboxs_output,bboxs_target)
-            bboxs_loss = torch.sum(bboxs_loss*score_target)
+            bboxs_loss = torch.sum(bboxs_loss*bboxs_weight)
+
+            # 范围框数值部分损失
+            bboxv_output = output[:,:5,:,:]
+            bboxv_target = target['bboxv']
+            # 为了让 bboxv_weight + bboxs_weight == 2
+            bboxv_weight = score_target + score_target - bboxs_weight
+            bboxv_loss = self.smooth_l1(bboxv_output,bboxv_target)
+            bboxv_loss = torch.sum(bboxv_loss,dim = 1)
+            bboxv_loss = torch.sum(bboxv_loss*bboxv_weight)
 
             # 对loss求均值
             if pix_n_count[j] > 0:
@@ -335,8 +347,8 @@ class TRDLoss(nn.Module):
                 bboxs_loss = bboxs_loss / pix_p_count[j]
                 bboxv_loss = bboxv_loss / pix_p_count[j]
             
-            # 由于 正负例不均衡  符号部分对范围框相同性的影响更大
-            sum_loss = sum_loss + 0.25*score_loss_n + 1.75*score_loss_p + 0.8*bboxs_loss + 1.2*bboxv_loss
+            # 由于 正负例不均衡  等原因所以额外加了下列权重，可以自定义权重
+            sum_loss = sum_loss + 0.25*score_loss_n + 1.75*score_loss_p + bboxs_loss + 1.2*bboxv_loss
 
             # 类别标签部分损失
             if num_classes > 1:
@@ -376,10 +388,10 @@ def imshow(img):
 if __name__ == '__main__':
     torch.multiprocessing.freeze_support()
     num_classes = 1
-    batch_size = 8
+    batch_size = 1
     image_size = 416
     bboxw_range = [(48,144),(24,72),(12,36)]
-    log_batchs = 50
+    log_batchs = 1
     start_epoch = 1
     end_epoch = 1001
 

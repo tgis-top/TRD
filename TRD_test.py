@@ -33,7 +33,7 @@ if __name__ == '__main__':
     net.load_state_dict(torch.load('./lan4/TRD_1000.pth'))
     net.to(device)
 
-    image = Image.open(r'D:\cvImageSamples\lan4\test\Untitled 1.jpg')
+    image = Image.open(r'D:\cvImageSamples\lan4\test\四尾栅藻 (4).JPG')
     net.eval()
     with torch.no_grad():
         pred = net.bigdetect(image,transform,217,score_thresh=0.5,iou_thresh=0.5,cd_thresh=0.1,device=device)
