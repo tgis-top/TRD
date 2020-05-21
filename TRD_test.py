@@ -11,7 +11,7 @@ from polynms import nms_poly
 if __name__ == '__main__':
     torch.multiprocessing.freeze_support()
     num_classes = 1
-    image_size = 416
+    image_size = 608
     bboxw_range = [(48,144),(24,72),(12,36)]
 
     transform = transforms.Compose([

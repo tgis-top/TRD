@@ -19,8 +19,8 @@ bbox_4pt2 = np.reshape(bbox_4pt2,(-1,2))
 print(bbox_4pt)
 print(bbox_4pt2)
 
-in_dir = r''
-out_dir = r''
+in_dir = r'D:\cvImageSamples\DOTA v1.5\train\labelTxt-v1.5\DOTA-v1.5_train'
+out_dir = r'E:\SourceCode\Python\TRD\DOTA'
 classes = {}
 
 if not os.path.exists(out_dir):

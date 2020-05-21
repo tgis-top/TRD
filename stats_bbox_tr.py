@@ -3,9 +3,12 @@ from os import listdir
 from os.path import join
 from bbox_tr import bbox_tr_get_wh
 
-in_dir = r'D:\cvImageSamples\lan4\SampleImages'
-out_dir = r'D:\cvImageSamples\lan4'
+in_dir = r'E:\SourceCode\Python\TRD\DOTA'
+out_dir = r'E:\SourceCode\Python\TRD'
 cls_stats = {}
+
+valid_objs = 0
+total_objs = 0
 
 for i in os.listdir(in_dir):
     image_id,image_ext = os.path.splitext(i)
@@ -19,6 +22,9 @@ for i in os.listdir(in_dir):
                 w,h = bbox_tr_get_wh(bbox)
                 if w <= 0.0:
                     continue
+                total_objs = total_objs + 1
+                if w >= 12:
+                    valid_objs = valid_objs+1
                 ar = h/w
                 if cls_id in cls_stats:
                     cls_stat = cls_stats[cls_id]
@@ -52,4 +58,6 @@ for cls_id in cls_stats:
         cls_stat[3],cls_stat[4],cls_stat[5],cls_stat[6],
         cls_stat[7])
         )
+cls_stats_file.write('vaid_objs = %d\n'%valid_objs)
+cls_stats_file.write('total_objs = %d'%total_objs)
 cls_stats_file.close()
