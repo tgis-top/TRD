@@ -19,6 +19,8 @@ def __max_bpt_square_dis(bbox_4pt1, bbox_4pt2):
 
 
 def nms_poly(dets, num_classes, iou_thresh = 0.5, cd_thresh = 0.1):
+    # 后面没开方 这里先平方一下
+    cd_thresh = cd_thresh**2
     cls_ids = dets[:,6]
     scores = dets[:,7]
     bboxs_4pt = []

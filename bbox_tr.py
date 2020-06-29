@@ -7,7 +7,6 @@ __all__ = (
     "bbox_cwh_2_tr",\
     "bbox_tr_get_wh",\
     "bbox_tr_2_4pt",\
-    "plot_image",\
     "plot_bbox",\
     )
 

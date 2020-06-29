@@ -1,19 +1,12 @@
-import torch
-import torchvision
-import torchvision.transforms as transforms
-import torchvision.models as models
-import matplotlib.pyplot as plt
-import numpy as np
-import multiprocessing  
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
 import math
+import numpy as np
+
+import torch
+import torch.nn as nn
+
 import resnet_backbone
-from bbox_tr import plot_bbox,bbox_tr_get_wh
-from PairFileDataset import PairFileDataset
-from PIL import Image
-from polyiou import iou_poly
+
+from bbox_tr import bbox_tr_get_wh
 from polynms import nms_poly
 
 
@@ -367,104 +360,4 @@ class TRDLoss(nn.Module):
             self.bboxs_loss_log = self.bboxs_loss_log + bboxs_loss 
         
         return sum_loss
-    
 
-def my_collate_fn(batch):
-    images = [item[0] for item in batch]
-    images = torch.stack(images,0)
-    targets_np = [item[1] for item in batch]
-    targets = []
-    for target_np in targets_np:
-        target = {key: torch.tensor(target_np[key]) for key in target_np}
-        targets.append(target)
-    return images, targets_np
-
-def imshow(img):
-    img = img / 2 + 0.5     # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
-
-if __name__ == '__main__':
-    torch.multiprocessing.freeze_support()
-    num_classes = 1
-    batch_size = 1
-    image_size = 416
-    bboxw_range = [(48,144),(24,72),(12,36)]
-    log_batchs = 1
-    start_epoch = 1
-    end_epoch = 1001
-
-    transform = transforms.Compose([
-        # transforms.Resize([image_size,image_size]),
-        transforms.ToTensor(),        
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    
-    lan4set = PairFileDataset(r'D:\cvImageSamples\lan4\SampleImages','.bmp',transform= transform)
-    
-    image, target = lan4set[3]
-
-    bboxes = target['bboxes']
-    cids = target['labels']
-    image = (image / 2 + 0.5)*255    # unnormalize
-    image = image.numpy()
-    image = np.transpose(image, (1, 2, 0))
-    plot_bbox(image, bboxes, labels=cids,absolute_coordinates=False)
-    plt.show()
-    
-    trainloader = torch.utils.data.DataLoader(lan4set, batch_size=batch_size,shuffle=True, num_workers=1,collate_fn = my_collate_fn)
-    
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    net = TRD(bboxw_range,image_size,num_classes)    
-    net.load_state_dict(torch.load('./lan4/TRD_1000.pth'))
-    net.to(device)
-    criterion = TRDLoss(bboxw_range,image_size)
-    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-
-    # dataiter = iter(trainloader)
-    # images, targets = dataiter.next()
-    # imshow(torchvision.utils.make_grid(images))
-    # images = images.to(device)
-    # pred = net.detect(images)
-    # image = images[0,:,:,:]
-    # image = (image / 2 + 0.5)*255    # unnormalize
-    # image = image.to('cpu')
-    # image = image.numpy()
-    # image = np.transpose(image, (1, 2, 0))
-    # plot_bbox(image, pred)
-    # plt.show()    
-
-    # log_file = open(r'')
-    for epoch in range(start_epoch,end_epoch):  # loop over the dataset multiple times
-        net.train()
-        for i, (images, targets) in enumerate(trainloader, 0):
-            # get the inputs
-            images = images.to(device)
-
-            # zero the parameter gradients
-            optimizer.zero_grad()
-    
-            # forward + backward + optimize
-            outputs = net(images)
-
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
-
-            # print log
-            if i % log_batchs == (log_batchs-1):    # print every 2000 mini-batches
-                log_msg = '[%d, %7d] sum_loss: %.3f score_loss_p: %.3f score_loss_n: %.3f bboxv_loss: %.3f bboxs_loss: %.3f label_loss: %.3f' %(
-                    epoch, i + 1, 
-                    loss, 
-                    criterion.score_loss_p_log, criterion.score_loss_n_log,
-                    criterion.bboxv_loss_log, criterion.bboxs_loss_log, 
-                    criterion.label_loss_log)
-                print(log_msg)
-                # log_file.writeline(log_msg)
-        
-        if epoch % 50 == 0:
-            save_path = './param/TRD_%d.pth'%epoch
-            torch.save(net.state_dict(), save_path)
-    
-    torch.save(net.state_dict(), './param/TRD_final.pth')
-    print('Finished Training')

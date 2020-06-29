@@ -50,8 +50,9 @@ def exclude_empty_samples(img_dir,lbl_dir,img_ext='.png'):
 if __name__ == '__main__':
     # in_dir = r'E:\SourceCode\Python\DOTA_devkit\example\labelTxt'
     # out_dir = r'E:\SourceCode\Python\TRD\param'
-    # # 这两个类别的高宽比到了45，不适合用预测范围框的方式检测目标
-    # # 其实船也不太合适，其高宽比到20，但是船周围很单调
+    # # 早些时候统计出来的宽高比不对，因为官方切图工具把范围框也给切细了
+    # # 这两个类别的高宽比太大，不适合用预测范围框的方式检测目标
+    # # 其实船也不太合适，但是船周围很单调
     # excludes = ('bridge','harbor')
     
     # if not os.path.exists(out_dir):
