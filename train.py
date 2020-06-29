@@ -130,7 +130,7 @@ def get_args():
                         help='Dataset path', dest='dataset_path')
     parser.add_argument('-iz', '--image-size', metavar='IZ', type=int, default=416,
                         help='Image size', dest='image_size')
-    parser.add_argument('-it', '--image-ext', metavar='IT', type=str, default='.bmp',
+    parser.add_argument('-ie', '--image-ext', metavar='IE', type=str, default='.bmp',
                         help='Image extension name', dest='image_ext')
 
     parser.add_argument('-se', '--start-epoch', metavar='SE', type=int, default=0,
@@ -139,8 +139,8 @@ def get_args():
                         help='Number of epochs', dest='epochs')
     parser.add_argument('-b', '--batch-size', metavar='B', type=int, default=8,
                         help='Batch size', dest='batch_size')
-    parser.add_argument('-c', '--classes-num', metavar='C', type=int, default=1,
-                        help='classes number', dest='num_classes')
+    parser.add_argument('-c', '--num-classes', metavar='C', type=int, default=1,
+                        help='number of classes', dest='num_classes')
 
 
     parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, default=0.01,
@@ -164,6 +164,16 @@ if __name__ == '__main__':
         net.load_state_dict(
             torch.load(args.load)
         )
+    
+    # # 加载预训练的resnet参数
+    # pretrained_dict = torch.load(pretrained_resnet)
+    # model_dict = net.state_dict()  
+    # #将pretrained_dict里不属于model_dict的键剔除掉 
+    # pretrained_dict =  {k: v for k, v in pretrained_dict.items() if k in model_dict}         
+    # # 更新现有的model_dict 
+    # model_dict.update(pretrained_dict)         
+    # # 加载我们真正需要的state_dict 
+    # net.load_state_dict(model_dict)
 
     try:
         train_net(net=net,
