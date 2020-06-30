@@ -42,7 +42,17 @@ def predit_image(net,
                 plot_bbox(np.asarray(image), pred, scores=pred[:,7], labels=pred[:,6])
                 plt.show()
             if(save):
-                pass
+                image_id,_ = os.path.splitext(img_path)
+                lbl_file = open(image_id+'.txt', 'w')
+                for _, bbox in enumerate(pred):
+                    lbl_file.write(
+                        str(int(bbox[6]))  + " " 
+                        + " ".join(['%.7f'%a for a in bbox[:4]]) + " " 
+                        + str(int(bbox[4])) + " " 
+                        + '%.7f'%bbox[5] + " " 
+                        + '%.7f'%bbox[7] + '\n')
+                lbl_file.close()
+
 
 
 def get_args():

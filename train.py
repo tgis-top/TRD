@@ -57,14 +57,14 @@ def train_net(net,
     
     trainset = PairFileDataset(dataset_path,image_ext,transform= transform)
     
-    # image, target = trainset[3]
-    # bboxes = target['bboxes']
-    # cids = target['labels']
-    # image = image*255    # unnormalize
-    # image = image.numpy()
-    # image = np.transpose(image, (1, 2, 0))
-    # plot_bbox(image, bboxes, labels=cids,absolute_coordinates=False)
-    # plt.show()
+    image, target = trainset[23]
+    bboxes = target['bboxes']
+    cids = target['labels']
+    image = image*255    # unnormalize
+    image = image.numpy()
+    image = np.transpose(image, (1, 2, 0))
+    plot_bbox(image, bboxes, labels=cids,absolute_coordinates=False)
+    plt.show()
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,shuffle=True, num_workers=1,collate_fn = my_collate_fn)   
 
