@@ -57,14 +57,14 @@ def train_net(net,
     
     trainset = PairFileDataset(dataset_path,image_ext,transform= transform)
     
-    image, target = trainset[23]
-    bboxes = target['bboxes']
-    cids = target['labels']
-    image = image*255    # unnormalize
-    image = image.numpy()
-    image = np.transpose(image, (1, 2, 0))
-    plot_bbox(image, bboxes, labels=cids,absolute_coordinates=False)
-    plt.show()
+    # image, target = trainset[3]
+    # bboxes = target['bboxes']
+    # cids = target['labels']
+    # image = image*255    # unnormalize
+    # image = image.numpy()
+    # image = np.transpose(image, (1, 2, 0))
+    # plot_bbox(image, bboxes, labels=cids,absolute_coordinates=False)
+    # plt.show()
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,shuffle=True, num_workers=1,collate_fn = my_collate_fn)   
 
@@ -104,7 +104,7 @@ def train_net(net,
 
             # print log
             if i % log_batchs == (log_batchs-1):    # print every log_batchs mini-batches
-                log_msg = '[%d, %7d] sum_loss: %.3f score_p: %.3f score_n: %.3f bboxv: %.3f bboxs: %.3f label: %.3f' %(
+                log_msg = '[%d, %7d] sum_loss: %.5f score_p: %.5f score_n: %.5f bboxv: %.5f bboxs: %.5f label: %.5f' %(
                     epoch+1, i + 1, 
                     loss, 
                     criterion.score_loss_p_log, criterion.score_loss_n_log,
@@ -126,9 +126,9 @@ def get_args():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-s', '--save-path', metavar='S', type=str, default=r'E:\SourceCode\Python\TRD\lan4',
                         help='Model saving path', dest='save_path')                                 
-    parser.add_argument('-d', '--dataset-path', metavar='D', type=str, default=r'D:\cvImageSamples\lan4\SampleImages',
+    parser.add_argument('-d', '--dataset-path', metavar='D', type=str, default=r'D:\cvImageSamples\lan4\splited_imgs',
                         help='Dataset path', dest='dataset_path')
-    parser.add_argument('-iz', '--image-size', metavar='IZ', type=int, default=416,
+    parser.add_argument('-iz', '--image-size', metavar='IZ', type=int, default=608,
                         help='Image size', dest='image_size')
     parser.add_argument('-ie', '--image-ext', metavar='IE', type=str, default='.bmp',
                         help='Image extension name', dest='image_ext')
@@ -137,7 +137,7 @@ def get_args():
                         help='Start epoch', dest='start_epoch')
     parser.add_argument('-e', '--epochs', metavar='E', type=int, default=1000,
                         help='Number of epochs', dest='epochs')
-    parser.add_argument('-b', '--batch-size', metavar='B', type=int, default=8,
+    parser.add_argument('-b', '--batch-size', metavar='B', type=int, default=4,
                         help='Batch size', dest='batch_size')
     parser.add_argument('-c', '--num-classes', metavar='C', type=int, default=1,
                         help='number of classes', dest='num_classes')

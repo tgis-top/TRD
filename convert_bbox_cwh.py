@@ -17,7 +17,7 @@ bbox_4pt2 = np.reshape(bbox_4pt2,(-1,2))
 print(bbox_4pt2)
 
 in_dir = r'D:\cvImageSamples\lan4\labelcwh'
-out_dir = r'D:\cvImageSamples\lan4\lanl'
+out_dir = r'D:\cvImageSamples\lan4\labeltra'
 
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
