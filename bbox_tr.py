@@ -5,6 +5,7 @@ import random
 __all__ = (
     "bbox_4pt_2_tr",\
     "bbox_cwh_2_tr",\
+    "bbox_cwha_2_tr",\
     "bbox_tr_get_wh",\
     "bbox_tr_2_4pt",\
     "plot_bbox",\
@@ -115,13 +116,59 @@ def bbox_cwh_2_tr(bbox_):
         s0 = -1
     s1 = 1
     if P[1] < 0:
-        P[1] = - P[0]
+        P[1] = - P[1]
         s1 = -1
     s = 1 if s0*s1 == 1 else 0
 
     bbox_tr_ = [bbox_[0],bbox_[1],P[0],P[1],s,cos]
 
     return bbox_tr_
+
+def bbox_cwha_2_tr(bbox_):
+    P = [bbox_[2],bbox_[3]]
+    Q = [-bbox_[2],bbox_[3]]
+    dp = P[0]*Q[0] + P[1]*Q[1]
+    ll = math.sqrt(P[0]*P[0] + P[1]*P[1])
+    cos = dp/(ll*ll)
+    if cos < 0:
+        Q = [bbox_[2],-bbox_[3]]
+        cos = -cos   
+    # 旋转矩阵
+    r = np.array([[math.cos(bbox_[4]), -math.sin(bbox_[4])],
+                  [math.sin(bbox_[4]), math.cos(bbox_[4])]])
+    P = r.dot(np.array(P))
+    Q = r.dot(np.array(Q))
+    # 正方形 取同号的作为参考向量
+    if bbox_[2] == bbox_[3]:
+        s0 = 1
+        if P[0] < 0:
+            s0 = -1
+        s1 = 1
+        if P[1] < 0:
+            s1 = -1
+        if s0*s1 == -1:
+            P,Q = Q,P
+        s = 1
+    else:
+        cp = P[1]*Q[0] - P[0]*Q[1]
+        if cp < 0:
+            P,Q = Q,P
+        s0 = 1
+        if P[0] < 0:
+            P[0] = - P[0]
+            s0 = -1
+        s1 = 1
+        if P[1] < 0:
+            P[1] = - P[1]
+            s1 = -1
+        s = 1 if s0*s1 == 1 else 0
+
+    bbox_tr_ = [bbox_[0],bbox_[1],P[0],P[1],s,cos]
+
+    return bbox_tr_
+
+
+
 
 def bbox_tr_get_wh(bbox_):
     if bbox_[2] == 0. and bbox_[3] == 0.:
