@@ -160,20 +160,21 @@ if __name__ == '__main__':
     bboxw_range = [(48,144),(24,72),(12,36)]
     net = TRD(bboxw_range,args.image_size,args.num_classes)  
 
-    if args.load:
-        net.load_state_dict(
-            torch.load(args.load)
-        )
+    # if args.load:
+    #     net.load_state_dict(
+    #         torch.load(args.load)
+    #     )
     
-    # # 加载预训练的resnet参数
-    # pretrained_dict = torch.load(pretrained_resnet)
-    # model_dict = net.state_dict()  
-    # #将pretrained_dict里不属于model_dict的键剔除掉 
-    # pretrained_dict =  {k: v for k, v in pretrained_dict.items() if k in model_dict}         
-    # # 更新现有的model_dict 
-    # model_dict.update(pretrained_dict)         
-    # # 加载我们真正需要的state_dict 
-    # net.load_state_dict(model_dict)
+    if args.load:
+        # 加载预训练的resnet参数
+        pretrained_dict = torch.load(args.load)
+        model_dict = net.state_dict()  
+        #将pretrained_dict里不属于model_dict的键剔除掉 
+        pretrained_dict =  {k: v for k, v in pretrained_dict.items() if k in model_dict}         
+        # 更新现有的model_dict 
+        model_dict.update(pretrained_dict)         
+        # 加载我们真正需要的state_dict 
+        net.load_state_dict(model_dict)
 
     try:
         train_net(net=net,
