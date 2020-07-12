@@ -3,6 +3,7 @@ import numpy as np
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 import resnet_backbone
 
@@ -65,9 +66,10 @@ class TRD(nn.Module):
         self.output = nn.Sequential(
             nn.Conv2d(self.backbone.feature_planes[0], self.backbone.feature_planes[0], kernel_size=1, stride=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(self.backbone.feature_planes[0], 256, kernel_size=1, stride=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 5 + 2 + 1 + (0 if num_classes==1 else num_classes), kernel_size=1, stride=1),
+            # nn.Conv2d(self.backbone.feature_planes[0], 256, kernel_size=1, stride=1),
+            # nn.ReLU(inplace=True),
+            # 5: 中心点坐标 CD向量 投影长度 1：CD向量同号或者异号 3：是否有目标
+            nn.Conv2d(self.backbone.feature_planes[0], 5 + 1 + 1 + (0 if num_classes==1 else num_classes), kernel_size=1, stride=1),
             nn.Sigmoid()
         )
     
@@ -102,20 +104,20 @@ class TRD(nn.Module):
         grid_size = self.image_size / ft_size
         for i in range(ft_size):
             for j in range(ft_size):
-                if output[0,7,i,j] < score_thresh:
+                if output[0,6,i,j] < score_thresh:
                     continue
                 bbox = [0.]*8
                 bbox[0] = (j + output[0,0,i,j].item())*grid_size
                 bbox[1] = (i + output[0,1,i,j].item())*grid_size
                 bbox[2] = output[0,2,i,j].item()*self.image_size
                 bbox[3] = output[0,3,i,j].item()*self.image_size
-                bbox[4] = 0 if output[0,5,i,j] > output[0,6,i,j] else 1
+                bbox[4] = 0 if output[0,5,i,j] > 0.5 else 1
                 bbox[5] = output[0,4,i,j].item()
                 if self.num_classes > 1:
-                    bbox[6] = output[0,8:,i,j].argmax().item()
+                    bbox[6] = output[0,7:,i,j].argmax().item()
                 else:
                     bbox[6] = 0
-                bbox[7] = output[0,7,i,j].item()
+                bbox[7] = output[0,6,i,j].item()
                 w,_ = bbox_tr_get_wh(bbox)
                 if w < bboxw[0] or w > bboxw[1]:
                     continue
@@ -189,11 +191,12 @@ class TRDLoss(nn.Module):
         self.bboxw_range = bboxw_range
         self.label_div = -1.0
         self.image_size = image_size
-        self.smooth_l1 = nn.SmoothL1Loss(reduction='none')
-        self.mse = nn.MSELoss(reduction='none')
-        self.cross_entropy = nn.CrossEntropyLoss(reduction='none')
         self.is_abs_bbox = is_abs_bbox
-        
+        self.score_loss = nn.MSELoss(reduction='none')
+        self.bboxs_loss = nn.MSELoss(reduction='none')
+        self.bboxv_loss = nn.MSELoss(reduction='none')
+        self.label_loss = nn.CrossEntropyLoss(reduction='none')
+
         # 正例置信度
         self.score_loss_p_log = 0.0            
         # 负例置信度
@@ -234,7 +237,7 @@ class TRDLoss(nn.Module):
             target_['bboxv'] = torch.zeros(*shape,device=outputs[j].device,dtype=outputs[j].dtype)
             # 范围框符号部分 同号为1 异号为0
             shape[1] = shape[0]
-            target_['bboxs'] = torch.zeros(*shape[1:],device=outputs[j].device,dtype=torch.long)
+            target_['bboxs'] = torch.zeros(*shape[1:],device=outputs[j].device,dtype=outputs[j].dtype)
             # 范围框符号的权重 顶点向量靠近坐标轴轴时符号无论取何值范围框误差都不会太大 此时权重应该很小
             target_['bboxs_weight'] = torch.zeros(*shape[1:],device=outputs[j].device,dtype=outputs[j].dtype)
             # 置信度部分 有目标为1 无为0
@@ -267,7 +270,7 @@ class TRDLoss(nn.Module):
                 bsw = (abs_bbox[2]-abs_bbox[3])/(abs_bbox[2]+abs_bbox[3])
                 bsw = bsw*bsw
                 # 反s曲线函数 bsw变大到一定程度权重应该突然减小
-                bsw = 1/(1+math.exp(20*(bsw-0.8)))
+                bsw = 1/(1+math.exp(100*(bsw-0.70)))
                 for l in range(3):
                     if w >= bboxw_range[l][0] and w <= bboxw_range[l][1]:
                         pix_p_count[l] = pix_p_count[l] + 1
@@ -307,9 +310,9 @@ class TRDLoss(nn.Module):
             target = targets_[j]
 
             # 置信度损失
-            score_output = output[:,7,:,:]
+            score_output = output[:,6,:,:]
             score_target = target['score'] 
-            score_loss = self.mse(score_output,score_target)
+            score_loss = self.score_loss(score_output,score_target)
             #    正例置信度
             score_loss_p = torch.sum(score_loss*score_target)
             #    负例置信度
@@ -317,20 +320,22 @@ class TRDLoss(nn.Module):
             score_loss_n = torch.sum(score_loss*score_weight_n)
 
             # 范围框符号部分损失
-            bboxs_output = output[:,5:7,:,:]
+            bboxs_output = output[:,5,:,:]
             bboxs_target = target['bboxs']
             bboxs_weight = target['bboxs_weight']
-            bboxs_loss = self.cross_entropy(bboxs_output,bboxs_target)
-            bboxs_loss = torch.sum(bboxs_loss*bboxs_weight)
+            bboxs_loss = self.bboxs_loss(bboxs_output,bboxs_target)
+            # bboxs_output = F.softmax(bboxs_output, dim=1)
+            # bboxs_loss = F.nll_loss(bboxs_output,bboxs_target, reduction='none')
+            bboxs_loss = torch.sum(bboxs_loss*score_target)
 
             # 范围框数值部分损失
             bboxv_output = output[:,:5,:,:]
             bboxv_target = target['bboxv']
             # 为了让 bboxv_weight + bboxs_weight == 2
-            bboxv_weight = score_target + score_target - bboxs_weight
-            bboxv_loss = self.smooth_l1(bboxv_output,bboxv_target)
+            # bboxv_weight = score_target + score_target - bboxs_weight
+            bboxv_loss = self.bboxv_loss(bboxv_output,bboxv_target)
             bboxv_loss = torch.sum(bboxv_loss,dim = 1)
-            bboxv_loss = torch.sum(bboxv_loss*bboxv_weight)
+            bboxv_loss = torch.sum(bboxv_loss*score_target)
 
             # 对loss求均值
             if pix_n_count[j] > 0:
@@ -341,13 +346,14 @@ class TRDLoss(nn.Module):
                 bboxv_loss = bboxv_loss / pix_p_count[j]
             
             # 由于 正负例不均衡  等原因所以额外加了下列权重，可以自定义权重
-            sum_loss = sum_loss + 0.25*score_loss_n + 1.75*score_loss_p + bboxs_loss + 1.2*bboxv_loss
+            # 为了提升训练效果，可以在训练过程中根据损失数值编号规律进行调整
+            sum_loss = sum_loss + 0.7*score_loss_n + 1.3*score_loss_p + 0.7*bboxs_loss + 0.3*bboxv_loss
 
             # 类别标签部分损失
             if num_classes > 1:
-                label_output = output[:,8:,:,:]
+                label_output = output[:,7:,:,:]
                 label_target = target['label']
-                label_loss = self.cross_entropy(label_output,label_target)
+                label_loss = self.label_loss(label_output,label_target)
                 label_loss = torch.sum(label_loss*score_target)
                 if pix_p_count[j] > 0:
                     label_loss = label_loss / (pix_p_count[j]*self.label_div)

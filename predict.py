@@ -58,7 +58,7 @@ def predit_image(net,
 def get_args():
     parser = argparse.ArgumentParser(description='Predict Objects by TRD on input image or dir',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-m', '--model', metavar='M', type=str, default=r'./lan4/TRD_1000.pth',
+    parser.add_argument('-m', '--model', metavar='M', type=str, default=r"E:\SourceCode\Python\pytorch_test\resnet50-19c8e357.pth",
                         help='TRD model path', dest='model')       
     parser.add_argument('-i', '--input', metavar='IN', type=str, default=r'D:\cvImageSamples\lan4\test\四尾栅藻 (4).JPG',
                         help='Filename or dir of input images',dest='image_path')
@@ -72,9 +72,9 @@ def get_args():
     parser.add_argument('-c', '--num-classes', metavar='C', type=int, default=1,
                         help='Number of classes', dest='num_classes')
 
-    parser.add_argument('-st', '--score-thresh', metavar='ST', type=float, default=0.7,
+    parser.add_argument('-st', '--score-thresh', metavar='ST', type=float, default=0.51,
                         help='Score threshold', dest='score_thresh')
-    parser.add_argument('-it', '--iou-thresh', metavar='IT', type=float, default=0.5,
+    parser.add_argument('-it', '--iou-thresh', metavar='IT', type=float, default=0.3,
                         help='IOU threshold', dest='iou_thresh')
     parser.add_argument('-ct', '--cen-dis-thresh', metavar='CT', type=float, default=0.1,
                         help='Box center distance threshold', dest='cd_thresh')
@@ -92,7 +92,17 @@ if __name__ == '__main__':
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    net.load_state_dict(torch.load(args.model))
+    # 加载预训练的resnet参数
+    pretrained_dict = torch.load(args.model)
+    model_dict = net.state_dict()  
+    #将pretrained_dict里不属于model_dict的键剔除掉 
+    pretrained_dict =  {k: v for k, v in pretrained_dict.items() if k in model_dict}         
+    # 更新现有的model_dict 
+    model_dict.update(pretrained_dict)         
+    # 加载我们真正需要的state_dict 
+    net.load_state_dict(model_dict)
+
+    # net.load_state_dict(torch.load(args.model))
     net.to(device)
 
     transform = transforms.Compose([
