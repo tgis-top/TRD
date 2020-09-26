@@ -192,10 +192,10 @@ class TRDLoss(nn.Module):
         self.label_div = -1.0
         self.image_size = image_size
         self.is_abs_bbox = is_abs_bbox
-        self.score_loss = nn.MSELoss(reduction='none')
-        self.bboxs_loss = nn.MSELoss(reduction='none')
-        self.bboxv_loss = nn.MSELoss(reduction='none')
-        self.label_loss = nn.CrossEntropyLoss(reduction='none')
+        self.score_loss_fn = nn.MSELoss(reduction='none')
+        self.bboxs_loss_fn = nn.BCELoss(reduction='none')
+        self.bboxv_loss_fn = nn.MSELoss(reduction='none')
+        self.label_loss_fn = nn.CrossEntropyLoss(reduction='none')
 
         # 正例置信度
         self.score_loss_p_log = 0.0            
@@ -312,7 +312,7 @@ class TRDLoss(nn.Module):
             # 置信度损失
             score_output = output[:,6,:,:]
             score_target = target['score'] 
-            score_loss = self.score_loss(score_output,score_target)
+            score_loss = self.score_loss_fn(score_output,score_target)
             #    正例置信度
             score_loss_p = torch.sum(score_loss*score_target)
             #    负例置信度
@@ -323,17 +323,17 @@ class TRDLoss(nn.Module):
             bboxs_output = output[:,5,:,:]
             bboxs_target = target['bboxs']
             bboxs_weight = target['bboxs_weight']
-            bboxs_loss = self.bboxs_loss(bboxs_output,bboxs_target)
+            bboxs_loss = self.bboxs_loss_fn(bboxs_output,bboxs_target)
             # bboxs_output = F.softmax(bboxs_output, dim=1)
             # bboxs_loss = F.nll_loss(bboxs_output,bboxs_target, reduction='none')
-            bboxs_loss = torch.sum(bboxs_loss*score_target)
+            bboxs_loss = torch.sum(bboxs_loss*bboxs_weight)
 
             # 范围框数值部分损失
             bboxv_output = output[:,:5,:,:]
             bboxv_target = target['bboxv']
             # 为了让 bboxv_weight + bboxs_weight == 2
             # bboxv_weight = score_target + score_target - bboxs_weight
-            bboxv_loss = self.bboxv_loss(bboxv_output,bboxv_target)
+            bboxv_loss = self.bboxv_loss_fn(bboxv_output,bboxv_target)
             bboxv_loss = torch.sum(bboxv_loss,dim = 1)
             bboxv_loss = torch.sum(bboxv_loss*score_target)
 
@@ -353,7 +353,7 @@ class TRDLoss(nn.Module):
             if num_classes > 1:
                 label_output = output[:,7:,:,:]
                 label_target = target['label']
-                label_loss = self.label_loss(label_output,label_target)
+                label_loss = self.label_loss_fn(label_output,label_target)
                 label_loss = torch.sum(label_loss*score_target)
                 if pix_p_count[j] > 0:
                     label_loss = label_loss / (pix_p_count[j]*self.label_div)

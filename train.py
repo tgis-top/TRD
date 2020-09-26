@@ -187,7 +187,8 @@ if __name__ == '__main__':
 
     args = get_args()
     
-    bboxw_range = [(48,144),(24,72),(12,36)]
+    # 
+    bboxw_range = [(48,320),(24,160),(12,80)]
     net = TRD(bboxw_range,args.image_size,args.num_classes)  
 
     # if args.load:

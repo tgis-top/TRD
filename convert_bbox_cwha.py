@@ -67,9 +67,9 @@ def convert_annotation(in_dir,image_id,out_dir,classes):
             return True
     return False
 
-in_dir = r'D:\cvImageSamples\lan4\test'
-out_dir = r'D:\cvImageSamples\lan4\test'
-classes = ["lan4"]
+in_dir = r'E:\RS_PRJ\zonglv'
+out_dir = r'E:\RS_PRJ\zonglv'
+classes = ["1"]
 
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
