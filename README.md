@@ -11,11 +11,15 @@ The TangRui annotation method (TRA) of arbitrary-oriented bounding box and the T
 
 ## predict.py
 
-预测工具，参考看代码。
+预测工具，参数看代码。
 
 ## predict_ui.py
 
 用wxPython实现的预测工具，安装了wxPython可以用这个。
+
+## evaluation.py
+
+评估模型效果代码，使用方式看代码。
 
 ## bbox_tr.py
 
